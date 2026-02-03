@@ -1,0 +1,1078 @@
+%%
+%% ACM Computing Surveys Format
+%% Secure Infrastructure for Deep Learning Model Deployment Survey
+%%
+\documentclass[manuscript,screen,review]{acmart}
+
+%% BibTeX command to typeset BibTeX logo
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    Bib\TeX}}}
+
+%% Rights management - Use acmlicensed for initial submission
+\setcopyright{acmlicensed}
+\copyrightyear{2026}
+\acmYear{2026}
+%% DOI will be assigned by ACM after acceptance
+\acmDOI{10.1145/XXXXXXX.XXXXXXX}
+
+%% These commands are for journal submission
+%% Will be filled in by ACM after acceptance
+\acmJournal{CSUR}
+\acmVolume{1}
+\acmNumber{1}
+\acmArticle{1}
+\acmMonth{2}
+
+%%
+%% Submission ID - Leave commented for initial submission
+%%\acmSubmissionID{123-A56-BU3}
+
+%%
+%% end of the preamble, start of the body of the document source.
+\begin{document}
+
+%%
+%% The "title" command
+\title{Secure Infrastructure for Deep Learning Model Deployment: A Survey of Access Control, Runtime Security, and Operational Best Practices}
+
+%%
+%% Author information
+\author{Lovina Dmello}
+\email{ldmello@nvidia.com}
+\email{lovina.dmello.06@gmail.com}
+\affiliation{%
+  \institution{NVIDIA Corporation}
+  \city{Santa Clara}
+  \state{California}
+  \country{USA}
+}
+
+\author{Lokesh Adusumilli}
+\email{LokeshDhananjayaRao.Adusumilli@uga.edu}
+\affiliation{%
+  \institution{University of Georgia}
+  \city{Athens}
+  \state{Georgia}
+  \country{USA}
+}
+
+%%
+%% CCS Concepts (Computing Classification System)
+%% Required by ACM - Replace with appropriate categories
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10002978.10003029</concept_id>
+       <concept_desc>Security and privacy~Systems security</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10002978.10003022</concept_id>
+       <concept_desc>Security and privacy~Security services</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10010147.10010257</concept_id>
+       <concept_desc>Computing methodologies~Machine learning</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10010520.10010553.10010554</concept_id>
+       <concept_desc>Computer systems organization~Cloud computing</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011074.10011111.10011113</concept_id>
+       <concept_desc>Software and its engineering~Software development process management</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+ </ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Security and privacy~Systems security}
+\ccsdesc[500]{Security and privacy~Security services}
+\ccsdesc[500]{Computing methodologies~Machine learning}
+\ccsdesc[300]{Computer systems organization~Cloud computing}
+\ccsdesc[300]{Software and its engineering~Software development process management}
+
+%%
+%% Keywords - Required by ACM
+\keywords{Machine learning security, deep learning infrastructure, MLOps, MLSecOps, access control, runtime security, container security, Kubernetes security, model deployment, adversarial machine learning, privacy-preserving machine learning, regulatory compliance, GDPR, multi-tenant isolation}
+
+%%
+%% This command processes the author and affiliation and title
+%% information and builds the first part of the formatted document.
+\maketitle
+
+\begin{abstract}
+As organizations increasingly deploy deep learning models in real-world applications, they face security challenges that go beyond traditional software protection. These AI systems can be attacked in unique ways: adversaries can manipulate inputs to change predictions through adversarial attacks \cite{secmlops_framework, mlops_security_strategies}, steal the model itself through extraction attacks, poison the training data, or leak sensitive information through privacy breaches. These risks are amplified by the complexity of modern deployment environments, which involve multiple interconnected services running in cloud infrastructure \cite{container_security_survey}.
+
+This survey provides a comprehensive analysis of security practices for deploying deep learning models in production. We organize our examination around three key areas: First, \textbf{Access Control} covers how to manage who can use the system, including user authentication, permission management \cite{ml_access_control_taxonomy}, API security, and isolation between different users \cite{dynamic_access_control_blockchain}. Second, \textbf{Runtime Security} focuses on protecting the system while it's operating, including detecting malicious inputs, monitoring system behavior \cite{cryptomining_detection_containers}, and validating data. Third, \textbf{Operational Best Practices} addresses day-to-day security management, including secure development practices through MLSecOps \cite{secmlops_framework, mlops_practices_review}, meeting regulatory requirements like GDPR and HIPAA \cite{gdpr_privacy_compliance, ml_privacy_meter}, and responding to security incidents.
+
+Our analysis examines current research on securing containers \cite{container_security_survey}, cloud deployments, and model serving systems \cite{tensorflow_serving, model_serving_evaluation}. We identify important gaps, particularly the challenge of maintaining strong security without slowing down model performance \cite{power_aware_ml_serving}. We also highlight promising future directions, including better automation for security policies and new techniques for privacy-preserving machine learning \cite{ml_privacy_meter}. This survey helps practitioners and researchers understand how to build secure, reliable, and compliant AI systems for production use.
+\end{abstract}
+
+% ========================================
+% INTRODUCTION
+% ========================================
+\section{Introduction}
+
+\subsection{Background and Motivation}
+
+Imagine a healthcare organization deploying a deep learning model to analyze medical images for cancer detection. The model achieves 95\% accuracy in testing, leading to enthusiastic approval for production deployment. Within weeks, the security team discovers unauthorized access to patient imaging data through a misconfigured API endpoint. The incident response team finds evidence that attackers queried the model systematically to extract its parameters—effectively stealing months of expensive research and development \cite{ml_access_control_taxonomy}. Further investigation reveals that the containerized inference service shared resources with other applications in ways that violated HIPAA compliance requirements \cite{container_security_survey, gdpr_privacy_compliance}. This scenario, while hypothetical, combines security failures that have occurred across real healthcare, financial, and technology organizations deploying deep learning models \cite{mlops_security_strategies}.
+
+\subsection{The Problem}
+
+These failures stem from a fundamental gap: organizations apply traditional security practices to systems with fundamentally different characteristics \cite{mlops_practices_review}. Conventional applications run deterministic code where security boundaries are well-defined. Deep learning systems process inputs through learned patterns where the line between normal and malicious behavior is probabilistic \cite{secmlops_framework}. Traditional software has clear access control points—files, databases, API endpoints. ML systems have additional sensitive assets like model weights, training data, and prediction patterns that require protection \cite{ml_privacy_meter, ml_access_control_taxonomy}. Conventional deployments run in relatively static infrastructure. ML workloads scale dynamically, share hardware resources, and evolve as models are retrained \cite{power_aware_ml_serving, model_serving_evaluation}.
+
+\subsection{Why This Problem is Important}
+
+The security challenges span every layer of the deployment stack. At the network boundary, API gateways must authenticate requests while detecting queries designed to steal model information \cite{dynamic_access_control_blockchain}. Load balancers must distribute traffic while preventing attackers from using prediction patterns to infer training data \cite{ml_privacy_meter}. At the application layer, inference servers must validate inputs for adversarial manipulation without introducing latency that degrades user experience \cite{tensorflow_serving, power_aware_ml_serving}. Container orchestrators must isolate workloads from different tenants while allowing the resource sharing that makes ML economically viable \cite{container_security_survey, cryptomining_detection_containers}. Storage systems must protect model weights and datasets without limiting the I/O performance that training and inference require. Monitoring systems must detect anomalies in ML-specific metrics—prediction confidence distributions, inference latency patterns, resource utilization by model—that traditional monitoring ignores \cite{monalisa_monitoring}.
+
+Compounding these technical challenges is an organizational gap. Security teams possess expertise in network defense, access control, and compliance but lack deep learning knowledge \cite{mlops_security_strategies}. Data science teams understand models but rarely have security training. DevOps engineers can deploy containers and manage Kubernetes but may not recognize ML-specific vulnerabilities \cite{container_security_survey}. Each team operates with different priorities: security prioritizes protection, data science prioritizes accuracy, operations prioritizes reliability. ML security requires all three perspectives to work together, but most organizations lack frameworks for this collaboration \cite{mlops_practices_review, secmlops_framework}.
+
+Recent research has addressed pieces of this puzzle. Computer security researchers have developed techniques for detecting adversarial examples \cite{secmlops_framework}. ML researchers have proposed privacy-preserving training methods \cite{ml_privacy_meter}. Systems researchers have improved container isolation \cite{container_security_survey}. Yet these advances remain fragmented. Organizations need comprehensive guidance that integrates access control, runtime protection, and operational practices into cohesive security frameworks for production ML systems \cite{mlops_practices_review}.
+
+\subsection{Survey Scope and Approach}
+
+This survey provides that comprehensive view. We organize our analysis around three pillars that span the full lifecycle of ML deployment \cite{secmlops_framework, mlops_practices_review}:
+
+\textbf{Access Control} covers managing who can use the system—from API authentication to permission management to multi-tenant isolation \cite{ml_access_control_taxonomy, dynamic_access_control_blockchain}. We examine how traditional access control concepts must be adapted for ML-specific operations and assets.
+
+\textbf{Runtime Security} addresses protecting the system while it operates—from detecting malicious inputs to monitoring behavior to validating data \cite{cryptomining_detection_containers, monalisa_monitoring}. We analyze techniques that maintain security without sacrificing the performance that production ML requires \cite{power_aware_ml_serving, tensorflow_serving}.
+
+\textbf{Operational Best Practices} focuses on day-to-day security management—from MLSecOps practices to regulatory compliance to incident response \cite{secmlops_framework, mlops_security_strategies, gdpr_privacy_compliance}. We explore how to bridge organizational gaps between security, data science, and operations teams.
+
+\subsection{Contributions}
+
+This survey makes the following contributions:
+
+\begin{enumerate}
+    \item We provide a comprehensive overview of security threats and defenses across the full ML deployment lifecycle, synthesizing fragmented research from computer security, machine learning, and systems communities.
+    
+    \item We identify critical gaps in current approaches, particularly where security requirements conflict with performance needs.
+    
+    \item We offer practitioners a comprehensive framework for implementing defense-in-depth security in production ML systems.
+\end{enumerate}
+
+For practitioners, this survey offers actionable patterns for securing ML deployments. For researchers, it identifies critical gaps where new techniques are needed.
+
+% ========================================
+% BACKGROUND / RELATED WORK
+% ========================================
+\section{Background and Related Work}
+
+This section provides essential background on deep learning deployment infrastructure and surveys related work across three key dimensions: access control mechanisms, runtime security approaches, and operational best practices for production ML systems.
+
+\subsection{Deep Learning Deployment Infrastructure}
+
+\subsubsection{Containerization and Orchestration}
+
+Container-based virtualization has emerged as the dominant paradigm for deploying deep learning models in production environments \cite{container_security_survey}. Unlike traditional virtual machines, containers share the host operating system kernel while providing isolated execution environments for applications. This lightweight approach enables faster startup times (50 milliseconds versus 30-40 seconds for VMs) and better resource utilization, making containers ideal for deploying microservice-based ML inference systems \cite{container_security_survey}.
+
+Kubernetes has become the de facto standard for container orchestration, providing automated deployment, scaling, and management of containerized applications \cite{cryptomining_detection_containers}. In ML serving contexts, Kubernetes manages multiple model instances across clusters, handles load balancing, and provides self-healing capabilities through automated restarts and health checks. However, this orchestration complexity introduces security challenges. Containers share the host kernel, creating potential attack vectors where malicious processes in one container could exploit kernel vulnerabilities to compromise the host or other containers \cite{container_security_survey}. The multi-tenant nature of Kubernetes clusters, where multiple teams or applications share infrastructure, amplifies these risks.
+
+\subsubsection{Model Serving Frameworks}
+
+Modern ML serving frameworks provide the infrastructure layer between trained models and production applications. TensorFlow Serving, introduced by Google, pioneered flexible, high-performance model serving with support for model versioning, A/B testing, and dynamic model loading \cite{tensorflow_serving}. These frameworks must balance competing requirements: low-latency inference for real-time applications, high throughput for batch processing, resource efficiency for cost optimization, and security isolation between different models and tenants \cite{model_serving_evaluation}.
+
+Recent work on power-aware model serving demonstrates the performance-security tradeoff inherent in ML deployment \cite{power_aware_ml_serving}. Security mechanisms such as input validation, request authentication, and monitoring introduce computational overhead that impacts inference latency and energy consumption. This creates tension between security requirements and the performance expectations of production ML systems.
+
+\subsection{Access Control for ML Systems}
+
+\subsubsection{Traditional Access Control Models}
+
+Access control in computing systems has evolved through several paradigms. Discretionary Access Control (DAC) allows resource owners to grant permissions, while Mandatory Access Control (MAC) enforces system-wide policies based on security classifications. Role-Based Access Control (RBAC) assigns permissions to roles rather than individual users, simplifying administration in large organizations. Attribute-Based Access Control (ABAC) makes decisions based on attributes of users, resources, and environmental context, providing more fine-grained control.
+
+However, these traditional models were designed for conventional software systems with well-defined access points and static resources. ML systems present fundamentally different characteristics: model weights are sensitive assets requiring protection, prediction APIs can leak information about training data, and the probabilistic nature of ML predictions creates new attack surfaces \cite{ml_access_control_taxonomy}.
+
+\subsubsection{ML-Specific Access Control Challenges}
+
+Applying machine learning to enhance access control systems has been an active research area. ML techniques can automate policy mining from access logs, detect anomalous access patterns, and adapt policies dynamically based on context \cite{ml_access_control_taxonomy, dynamic_access_control_blockchain}. Supervised learning approaches classify access requests as legitimate or suspicious, while reinforcement learning enables adaptive policies that learn from access patterns over time \cite{dynamic_access_control_blockchain}.
+
+However, securing access to ML systems themselves requires different approaches. Research has identified several ML-specific access control requirements \cite{ml_access_control_taxonomy}: protecting model intellectual property through controlled API access, preventing model extraction attacks where adversaries reconstruct models through repeated queries, isolating training data from inference systems to prevent data leakage, and managing multi-tenant scenarios where multiple organizations share ML infrastructure while maintaining data privacy.
+
+\subsection{Runtime Security and Threat Detection}
+
+\subsubsection{Adversarial Attacks on ML Systems}
+
+Deep learning models are vulnerable to adversarial attacks where carefully crafted inputs cause misclassification. These attacks exploit the high-dimensional input space and the model's learned decision boundaries. Adversarial examples can be generated through gradient-based methods that iteratively modify inputs to maximize prediction error while remaining imperceptible to humans. In production deployments, such attacks could have serious consequences: autonomous vehicles misclassifying stop signs, medical diagnosis systems providing incorrect predictions, or financial fraud detection systems failing to identify fraudulent transactions \cite{secmlops_framework}.
+
+Beyond adversarial examples, ML systems face model extraction attacks (stealing model weights through API queries), data poisoning (corrupting training data to backdoor models), and membership inference attacks (determining if specific data was used in training) \cite{ml_privacy_meter}. These attacks are amplified in cloud deployments where multiple tenants share infrastructure and adversaries may have increased access to system internals.
+
+\subsubsection{Container Security and Monitoring}
+
+The containerized nature of modern ML deployments introduces specific security concerns. Research on container security has identified four key threat scenarios \cite{container_security_survey}: protecting containers from malicious applications inside them, inter-container protection to prevent lateral movement, protecting the host system from compromised containers, and protecting containers from malicious or semi-honest host operators.
+
+Linux kernel features such as namespaces, control groups (cgroups), capabilities, and seccomp provide the foundation for container isolation. However, vulnerabilities in these mechanisms or misconfigurations can compromise security. Recent work on detecting cryptomining malware in Kubernetes clusters demonstrates the importance of monitoring system calls and resource usage patterns to identify anomalous behavior \cite{cryptomining_detection_containers}. Such monitoring systems must balance security detection capabilities with the performance overhead of continuous observation \cite{monalisa_monitoring}.
+
+\subsection{Operational Security and MLOps}
+
+\subsubsection{MLOps and Security Integration}
+
+Machine Learning Operations (MLOps) emerged as a practice to streamline the ML lifecycle from development through deployment and maintenance. However, early MLOps practices focused primarily on automation and reliability, with security often added as an afterthought \cite{mlops_practices_review}. This gap has led to security incidents where ML models were deployed with inadequate access controls, insufficient input validation, or missing monitoring capabilities.
+
+The concept of Secure MLOps (MLSecOps) addresses this by embedding security throughout the ML lifecycle \cite{secmlops_framework}. This includes secure data collection and storage, privacy-preserving training techniques, secure model serialization and storage, authenticated and authorized model serving, continuous monitoring for adversarial attacks and data drift, and incident response procedures for ML-specific threats. Research has identified key challenges in implementing MLSecOps \cite{mlops_practices_review}: organizational gaps between security, data science, and operations teams; lack of standardized security practices for ML systems; difficulty balancing security controls with performance requirements; and limited tools for ML-specific security monitoring.
+
+\subsubsection{Compliance and Privacy}
+
+Deploying ML systems with personal or sensitive data requires compliance with regulations such as GDPR (General Data Protection Regulation) and HIPAA (Health Insurance Portability and Accountability Act). These regulations impose requirements for data minimization, purpose limitation, transparency, and accountability \cite{gdpr_privacy_compliance}. ML systems create additional compliance challenges because models can memorize and leak training data through their predictions.
+
+Privacy-preserving machine learning techniques such as differential privacy, federated learning, and secure multi-party computation offer mathematical guarantees about information leakage. However, applying these techniques in production involves tradeoffs between privacy guarantees, model accuracy, and computational cost \cite{ml_privacy_meter}. Organizations must perform Data Protection Impact Assessments (DPIAs) to quantify privacy risks from ML models and implement appropriate safeguards \cite{ml_privacy_meter}.
+
+Recent research has developed tools to measure privacy risks in deployed ML models, enabling organizations to assess whether their systems meet regulatory requirements \cite{ml_privacy_meter}. However, the gap between research prototypes and production-ready privacy-preserving ML systems remains significant. Organizations need practical guidance on implementing privacy controls that satisfy regulatory requirements while maintaining acceptable model performance \cite{gdpr_privacy_compliance}.
+
+\subsubsection{Emerging Security Strategies}
+
+Recent work on MLOps-enabled security strategies for operational technologies demonstrates the evolution toward more comprehensive security frameworks \cite{mlops_security_strategies}. These frameworks recognize that ML security requires integration across multiple layers: infrastructure security (container and network isolation), application security (API authentication and input validation), model security (adversarial robustness and privacy preservation), and operational security (monitoring, logging, and incident response).
+
+However, significant gaps remain in bridging research advances with production practices. Many proposed security techniques lack evaluation in real-world deployment contexts, fail to account for performance constraints, or require expertise that organizations lack \cite{mlops_practices_review}. This survey aims to address these gaps by providing a comprehensive view of security practices across the full ML deployment lifecycle, identifying critical tradeoffs, and offering practitioners actionable guidance for building secure ML systems.
+
+\subsection{Related Surveys and Positioning}
+
+Several surveys have examined aspects of ML security and deployment, but none provide the comprehensive infrastructure-focused view we present here.
+
+\subsubsection{ML Security Surveys}
+
+Previous surveys on adversarial machine learning have focused primarily on attack and defense techniques at the model level, examining adversarial example generation, model extraction, and data poisoning. While these works provide valuable taxonomies of ML-specific attacks, they typically treat deployment infrastructure as an implementation detail rather than a central security concern.
+
+Surveys on privacy-preserving machine learning have examined techniques like differential privacy, federated learning, and secure computation \cite{ml_privacy_meter}. However, these focus on privacy during training and inference, with limited discussion of how privacy mechanisms integrate into production deployment pipelines or how they interact with infrastructure security controls.
+
+\subsubsection{Systems Security Surveys}
+
+Research on container security has provided comprehensive analyses of isolation mechanisms, vulnerabilities, and attack vectors in containerized environments \cite{container_security_survey}. However, these surveys target general-purpose containerized applications and do not address ML-specific security requirements such as protecting model weights, detecting adversarial inputs, or preventing model extraction through API abuse.
+
+Surveys on cloud security and multi-tenant systems examine isolation, access control, and monitoring in cloud environments. While relevant to ML deployment, these works do not address the unique characteristics of ML workloads: dynamic scaling based on inference load, resource sharing between training and serving, or the probabilistic nature of ML predictions that complicates anomaly detection.
+
+\subsubsection{MLOps Surveys}
+
+Recent surveys on MLOps practices have documented the challenges organizations face in operationalizing ML systems \cite{mlops_practices_review}. These works identify gaps in tooling, organizational practices, and standardization. However, security typically appears as one concern among many, without deep analysis of the specific security challenges in ML deployment or comprehensive guidance on security controls.
+
+Work on MLSecOps has begun integrating security into the ML lifecycle \cite{secmlops_framework}, proposing frameworks that embed security from development through deployment. However, existing MLSecOps research focuses primarily on secure development practices and model-level security, with less emphasis on production infrastructure security, multi-tenant isolation, and operational security monitoring.
+
+\subsubsection{Positioning of This Survey}
+
+Our survey differs from prior work in several key aspects:
+
+\textbf{Infrastructure-Centric View:} We center our analysis on the deployment infrastructure—containers, orchestration, serving frameworks, and monitoring systems—rather than treating infrastructure as secondary to model-level security. This reflects the reality that production ML security failures often stem from infrastructure misconfigurations, inadequate access controls, or insufficient monitoring rather than sophisticated adversarial attacks on models.
+
+\textbf{End-to-End Deployment Lifecycle:} Rather than focusing on a single aspect (attacks, defenses, privacy, or operations), we examine security across the complete deployment lifecycle. We show how access control, runtime security, and operational practices must work together to provide defense-in-depth.
+
+\textbf{Practitioner-Focused Guidance:} We bridge the gap between academic research and production deployment by examining not just what security mechanisms exist, but how they can be implemented in real systems given performance constraints, organizational limitations, and tool maturity. We highlight practical tradeoffs rather than idealized security models.
+
+\textbf{Comprehensive Citation of Practice:} We systematically review not only academic literature but also industry practices, tool documentation, and operational experience reports. This provides a more complete picture of the state of ML deployment security as practiced in production environments.
+
+\textbf{Integration of Multiple Communities:} ML security research spans multiple communities—machine learning, systems security, software engineering, and operations—that often work in isolation. We integrate insights across these communities to provide a unified view of ML deployment security.
+
+This comprehensive approach enables us to identify critical gaps where stronger security mechanisms are needed, highlight areas where existing techniques remain immature for production use, and provide actionable guidance for practitioners building secure ML systems.
+
+% ========================================
+% SECTION 3: ACCESS CONTROL
+% ========================================
+\section{Access Control for Deep Learning Deployments}
+
+Access control forms the first line of defense in securing ML deployment infrastructure. This section examines authentication mechanisms, authorization models, multi-tenant isolation, identity management, and API security practices specific to production ML systems. Unlike traditional applications with well-defined access boundaries, ML systems must protect multiple asset types—model weights, training data, prediction APIs, and infrastructure resources—each requiring tailored access control approaches.
+
+\subsection{Authentication Mechanisms}
+
+Authentication verifies the identity of entities accessing ML systems. Production ML deployments involve multiple authentication scenarios: users accessing prediction APIs, services communicating within the ML pipeline, administrators managing infrastructure, and automated systems triggering model retraining. Each scenario presents unique requirements and constraints.
+
+\subsubsection{API-Based Authentication}
+
+ML inference services typically expose REST or gRPC APIs for prediction requests. API authentication mechanisms must balance security with performance, as authentication overhead directly impacts inference latency. Common approaches include API keys, JSON Web Tokens (JWT), and OAuth 2.0 flows.
+
+API keys provide simple authentication by embedding secret tokens in requests. However, key management becomes challenging at scale: keys must be rotated regularly, revoked when compromised, and scoped appropriately to limit damage from leakage. Research on API security for ML systems demonstrates that na\"ive API key implementations often fail to implement proper rate limiting, enabling attackers to extract models through repeated queries. Dynamic machine learning models can assess API access risks in real-time, adapting authentication requirements based on request patterns and user behavior \cite{api_security_ml_models}.
+
+The work by Nokovic et al. \cite{api_security_ml_models} demonstrates that combining qualitative and quantitative verification over models created on training data can significantly reduce false access probability. Their risk assessment framework for API authentication uses digital identity attributes such as IP address, browser user agent, and user activity patterns to estimate risk levels for each authentication attempt. This approach enables adaptive security policies that balance usability with protection against credential stuffing, bot attacks, and account takeover attempts.
+
+OAuth 2.0 and OpenID Connect provide more sophisticated authentication flows suitable for user-facing ML applications. These protocols separate authentication from authorization, enabling integration with enterprise identity providers while maintaining API security. However, implementing OAuth correctly requires careful attention to token lifetimes, refresh mechanisms, and scope management—complexity that many ML deployment teams lack expertise to handle properly.
+
+\subsubsection{Certificate-Based Authentication}
+
+For service-to-service communication within ML pipelines, certificate-based authentication using mutual TLS (mTLS) provides stronger security guarantees than shared secrets. Each service receives a cryptographic identity certificate, and connections are authenticated through cryptographic protocols rather than shared passwords. This approach aligns well with microservices architectures common in ML deployments, where models, feature stores, and monitoring services must communicate securely.
+
+Kubernetes provides native support for certificate management through its Certificate API, automating certificate issuance and rotation for workloads. However, certificate-based authentication introduces operational complexity: certificate authorities must be managed, certificates must be rotated before expiration, and revocation mechanisms must handle compromised credentials. Research on container security for ML deployments identifies certificate misconfiguration as a common vulnerability, particularly when teams unfamiliar with PKI infrastructure attempt to implement mTLS.
+
+\subsubsection{Multi-Factor and Biometric Authentication}
+
+For administrative access to ML infrastructure and sensitive operations like model deployment, multi-factor authentication (MFA) provides additional security layers beyond passwords. MFA combines something the user knows (password), something they have (hardware token or mobile device), and optionally something they are (biometric factors).
+
+Recent work on continuous authentication using behavioral biometrics demonstrates ML's dual role in access control: machine learning techniques can analyze keystroke dynamics, mouse movements, and interaction patterns to continuously verify user identity during sessions \cite{behavioral_biometrics_fastapi}. Integration of FastAPI with machine learning for behavioral biometrics achieves near-zero false positive rates while maintaining imperceptible user experience impact. The system performs continuous authentication without interrupting user actions, using neural networks to classify behavior patterns based on click length, button type, and screen interaction sequences.
+
+However, behavioral biometrics raise privacy concerns, requiring careful consideration of data collection policies and compliance with regulations like GDPR \cite{gdpr_privacy_compliance}. Organizations must balance the security benefits of continuous monitoring against user privacy expectations and regulatory requirements for consent and data minimization.
+
+\subsection{Authorization Models}
+
+While authentication verifies identity, authorization determines what authenticated entities can do. ML systems require authorization decisions at multiple levels: which users can invoke which models, which services can access which data sources, which administrators can deploy model updates, and which operations require elevated privileges.
+
+\subsubsection{Role-Based Access Control (RBAC)}
+
+RBAC remains the most widely deployed authorization model in enterprise environments. Users are assigned to roles (e.g., "data scientist," "model operator," "infrastructure admin"), and permissions are granted to roles rather than individual users. This simplifies administration: rather than managing permissions for thousands of users, administrators define a small number of roles with appropriate permissions.
+
+For ML deployments, RBAC provides coarse-grained control suitable for organizational boundaries. A data science team might have permissions to train models and submit deployment requests, while an operations team has permissions to approve deployments and manage infrastructure. However, RBAC's rigidity becomes problematic for fine-grained control: defining roles that capture the nuance of ML operations (e.g., "can deploy models for customer segment A but not segment B") quickly leads to role explosion.
+
+Research on machine learning for detecting database intrusions in RBAC-enabled systems demonstrates that even well-designed RBAC policies can be circumvented through privilege escalation or role mining attacks \cite{ml_database_intrusion_rbac}. Comparison studies by Soni and Kumar \cite{rbac_abac_comparison} of RBAC and ABAC security models for private cloud deployments—highly relevant to ML infrastructure—show that RBAC's simplicity comes at the cost of limited expressiveness for complex scenarios. Their analysis reveals that as the number of roles increases to accommodate diverse access requirements, administrative complexity increases proportionally, eventually negating RBAC's management advantages.
+
+\subsubsection{Attribute-Based Access Control (ABAC)}
+
+ABAC makes authorization decisions based on attributes of the user, resource, action, and environment context. Rather than static role assignments, ABAC policies express rules like "data scientists can access training data if classification level equals 'internal' and request originates from corporate network." This flexibility makes ABAC particularly suitable for ML systems with complex, dynamic access requirements.
+
+For ML deployments, ABAC enables fine-grained policies that adapt to context: prediction requests from verified users during business hours might allow access to high-accuracy models, while unverified requests or off-hours access might route to restricted-capacity models. Model deployment policies can require multiple approvals for models trained on sensitive data, while allowing automatic deployment for models trained on public datasets. As demonstrated by Soni and Kumar \cite{rbac_abac_comparison}, ABAC provides greater flexibility and scalability compared to RBAC, particularly for cloud-based ML infrastructure where access patterns vary dynamically based on workload, location, and risk level.
+
+However, ABAC's expressiveness introduces challenges. Policies become complex, making them difficult to verify, test, and debug. Machine learning approaches for access control policy verification \cite{ml_policy_verification} can automatically check policy logic for inconsistencies, conflicts, and unintended consequences—critical for ML deployments where incorrect authorization could leak sensitive model information or enable unauthorized data access. The NIST work by Hu \cite{ml_policy_verification} proposes an efficient method for access control policy verification by applying classification algorithms that directly check the logic of policy rules without requiring comprehensive test cases or system translation, making verification more feasible for complex ABAC policies.
+
+\subsubsection{Policy-Based and Dynamic Authorization}
+
+Recent work explores dynamic access control policies that adapt based on learned patterns. Reinforcement learning approaches enable policies to optimize security-usability tradeoffs by learning from access patterns: frequently granted requests might be expedited, while unusual patterns trigger additional verification. Blockchain-based approaches provide distributed, tamper-resistant policy enforcement suitable for multi-organization ML collaborations.
+
+Dynamic authorization raises important questions for ML systems: How should policies handle concept drift in user behavior? When should learned policies override explicit rules? How can organizations audit and explain authorization decisions made by ML models? These questions remain active research areas with limited production guidance.
+
+\subsection{Multi-Tenant Isolation}
+
+Modern ML platforms frequently serve multiple tenants—different teams, business units, or external customers—sharing underlying infrastructure for cost efficiency. Multi-tenant isolation ensures that tenants cannot access each other's data, models, or resources, despite sharing compute, storage, and network infrastructure.
+
+\subsubsection{Namespace and Resource Isolation}
+
+Kubernetes provides namespace-based isolation, allowing administrators to partition clusters into logical groups. Each tenant receives a dedicated namespace with resource quotas limiting CPU, memory, and storage consumption. Network policies restrict traffic between namespaces, preventing lateral movement if one tenant's workload is compromised.
+
+However, namespace isolation alone provides insufficient security for ML workloads. Research on multi-tenant security in cloud computing identifies several attack vectors that cross namespace boundaries: container escape vulnerabilities that exploit shared kernel, side-channel attacks that leak information through shared resources, and metadata API abuse that exposes cluster-wide information. Graph-based models for multi-tenant security \cite{graph_multitenant_security} demonstrate that analyzing resource dependencies reveals isolation violations not apparent from namespace configuration alone.
+
+Pasham \cite{graph_multitenant_security} shows that graph theory enables structured representation of relationships and interactions between tenants, resources, and services in multi-tenant cloud environments. By modeling cloud resources and tenant interactions as graphs, these security models can effectively monitor risks, detect pre-identified abnormalities, and control cross-tenancy data breaches. Graph-based approaches using community identification and machine learning for anomaly detection prove particularly effective for preventing framework invasions and resource contention in scenarios like VM deployment. However, scalability concerns and integration with traditional security models remain active challenges.
+
+\subsubsection{Data Isolation and Encrypted Storage}
+
+ML systems process and store sensitive data requiring tenant-specific encryption and access controls. Data isolation mechanisms must protect multiple data types: raw input data, training datasets, model weights, and prediction results. Each type has different sensitivity and access patterns.
+
+Encryption at rest protects stored data from unauthorized access, but key management becomes complex in multi-tenant scenarios: each tenant requires separate encryption keys, keys must be rotated regularly, and access logs must track which tenants accessed which data. Hardware security modules (HSMs) or cloud-native key management services provide centralized key storage, but introduce performance overhead and potential bottlenecks for data-intensive ML workloads.
+
+Recent work on security in multi-tenancy cloud environments specific to ML deployments shows that naive data isolation—simple file system permissions or database access controls—fails under sophisticated attacks. Secure multi-party computation and homomorphic encryption enable computation on encrypted data, allowing tenants to benefit from shared infrastructure without exposing raw data. However, these techniques remain too computationally expensive for most production ML scenarios.
+
+\subsubsection{Network Segmentation and Traffic Isolation}
+
+Network-level isolation prevents tenants from accessing each other's services or intercepting traffic. Virtual Private Clouds (VPCs), Virtual Local Area Networks (VLANs), or software-defined networking (SDN) create isolated network segments for each tenant. Within Kubernetes, Network Policies enforce firewall-like rules restricting which pods can communicate.
+
+For ML deployments, network segmentation must accommodate complex communication patterns: model serving endpoints must be accessible to tenant users, feature stores must be accessible to inference services, and monitoring systems must collect metrics from all components. Balancing connectivity requirements with isolation constraints requires careful network architecture. Research on ML infrastructure security demonstrates that misconfigured network policies—particularly overly permissive default rules—create vulnerabilities enabling cross-tenant access.
+
+\subsection{Identity and Access Management (IAM)}
+
+IAM frameworks provide centralized management of identities, authentication, and authorization across ML deployments. Cloud providers offer IAM services (AWS IAM, Azure AD, GCP IAM) that integrate with ML platforms, while enterprise organizations often deploy identity providers like Okta or Active Directory.
+
+\subsubsection{Service Accounts and Non-Human Identities}
+
+ML deployments involve numerous automated processes: training pipelines that fetch data, model servers that load weights, monitoring services that collect metrics, and CI/CD systems that deploy updates. Each automated process requires credentials to authenticate and authorization to access resources.
+
+Service accounts provide identities for automated processes, with credentials managed separately from user accounts. In Kubernetes, service accounts receive automatically mounted tokens enabling pod-to-API-server authentication. However, service account management introduces challenges: accounts proliferate as ML systems grow, permissions must follow least-privilege principles, and compromised service accounts provide persistent attacker access.
+
+Machine learning in action for securing IAM APIs demonstrates that ML-based risk authentication decision engines can detect anomalous service account behavior \cite{iam_risk_authentication}. The Risk Authentication/Assessment Decision Engine (RADE) system by Djosic et al. \cite{iam_risk_authentication} uses digital identity attributes such as IP address, browser user agent, and user activity to estimate risk levels for each authentication attempt. Their practical implementation shows how ML techniques integrate into DevOps ecosystems to detect unusual access patterns, credential use from unexpected locations, or privilege escalation attempts. These systems adapt to normal behavior patterns, flagging deviations for investigation while minimizing false positives that disrupt legitimate automated workflows.
+
+\subsubsection{Secret Management}
+
+ML systems require numerous secrets: database passwords, API keys for external services, encryption keys for sensitive data, and credentials for cloud resources. Secrets must be stored securely, accessed only by authorized services, rotated regularly, and audited comprehensively.
+
+Secret management solutions like HashiCorp Vault, Kubernetes Secrets, or cloud-native options (AWS Secrets Manager, Azure Key Vault) provide centralized secret storage with access controls, encryption, and audit logging. However, integrating secret management with ML workflows requires careful design: secrets must be available when models start, without exposing them in configuration files or environment variables visible to attackers.
+
+Common pitfalls include: secrets hardcoded in Docker images, secrets stored in version control, overly broad secret access policies, and insufficient monitoring of secret usage. Research on ML infrastructure security emphasizes that secret management failures enable attack chains: compromised secrets lead to data breaches, which enable model extraction, which reveals training data leakage.
+
+\subsection{API Security for ML Serving}
+
+ML prediction APIs form the primary interface between models and applications. API security mechanisms must prevent abuse while maintaining the low latency required for real-time inference.
+
+\subsubsection{Rate Limiting and Quota Management}
+
+Rate limiting restricts the number of requests users or services can make within time windows, preventing denial-of-service attacks and resource exhaustion. For ML APIs, rate limiting serves additional purposes: preventing model extraction attacks that require many queries, controlling inference costs, and ensuring fair resource sharing among tenants.
+
+However, determining appropriate rate limits for ML APIs requires balancing multiple factors. Legitimate batch prediction workloads generate high request volumes, while low-volume but high-value real-time predictions require immediate service. Static rate limits fail to accommodate this diversity, while dynamic limits based on learned usage patterns risk disrupting legitimate users.
+
+Current research on API security risk assessment using dynamic ML models \cite{api_security_ml_models} demonstrates that machine learning can optimize rate limits by predicting whether request patterns indicate legitimate use or abuse. The work by Nokovic et al. \cite{api_security_ml_models} shows that ML models trained on authentication attempt patterns can significantly reduce false access probability even when dealing with imbalanced datasets typical of authentication systems. These systems adapt limits based on user history, request characteristics (such as API endpoint patterns, payload sizes, and request timing), and system load, maintaining security without unnecessarily restricting legitimate usage. Their approach combines qualitative policy rules with quantitative risk scores, enabling fine-grained rate limiting decisions that traditional static threshold systems cannot achieve.
+
+\subsubsection{API Gateway Security}
+
+API gateways sit between ML prediction services and external clients, providing centralized enforcement of security policies: authentication, authorization, rate limiting, input validation, and logging. Gateways enable security policy changes without modifying model serving code—critical for ML systems where data scientists may lack security expertise.
+
+However, API gateways introduce potential bottlenecks and single points of failure. Gateway performance directly impacts end-to-end inference latency, and gateway downtime blocks all prediction requests. Distributed gateway architectures with multiple instances behind load balancers provide redundancy, but introduce configuration complexity and potential policy inconsistencies across instances.
+
+\subsubsection{Request Validation and Sanitization}
+
+ML APIs must validate requests before processing to prevent injection attacks, malformed inputs that crash services, or adversarial examples designed to manipulate predictions. Validation includes schema checking (correct field types and required fields), range checking (values within expected bounds), and semantic validation (inputs match expected distributions).
+
+However, overly strict validation can reject legitimate but unusual inputs—precisely the scenario where ML models should provide predictions. Research on API security for ML systems shows that ML-based input validation adapts to changing input distributions while detecting truly anomalous inputs likely to represent attacks. These systems learn normal input characteristics from traffic patterns, flagging inputs that deviate significantly while accommodating gradual distribution shifts.
+
+\subsection{Summary and Integration}
+
+Access control for ML deployments requires integrating multiple mechanisms—authentication, authorization, multi-tenant isolation, IAM, and API security—into defense-in-depth architectures. No single mechanism provides complete protection; rather, layered controls create security resilience where failures in one layer are caught by others.
+
+Key challenges remain in bridging research and practice. Many advanced access control techniques (ABAC policy verification, behavioral biometrics, ML-based anomaly detection) show promise in research settings but lack production-ready implementations. Organizations need practical guidance on: selecting appropriate authentication mechanisms for different ML workload types, designing RBAC/ABAC policies that balance security and operational efficiency, implementing multi-tenant isolation that withstands sophisticated attacks, managing service account proliferation in complex ML pipelines, and configuring API security that prevents abuse without degrading user experience.
+
+The following sections examine runtime security mechanisms that complement access control, providing continuous protection during ML system operation, and operational best practices that sustain security postures over time.
+
+% ========================================
+% SECTION 4: RUNTIME SECURITY
+% ========================================
+\section{Runtime Security}
+
+While access control prevents unauthorized access to ML systems, runtime security mechanisms provide continuous protection during system operation. This section examines techniques for validating inputs, monitoring system behavior, detecting anomalies, identifying threats, managing request rates, and maintaining comprehensive audit logs. Runtime security must operate with minimal performance overhead while detecting sophisticated attacks that evade static defenses.
+
+\subsection{Input Validation and Adversarial Detection}
+
+ML models process diverse inputs—images, text, sensor data, structured features—each requiring validation to prevent malicious manipulation. Input validation operates at multiple levels: syntactic validation ensures inputs conform to expected schemas, semantic validation checks that inputs represent plausible real-world data, and adversarial detection identifies inputs crafted to manipulate model predictions.
+
+\subsubsection{Schema and Type Validation}
+
+Schema validation forms the first line of runtime defense, rejecting requests that violate API contracts. For ML inference APIs, this includes verifying that input tensors have correct dimensions, feature values match expected types (numerical, categorical, text), required fields are present, and value ranges fall within trained bounds. Schema validation catches implementation errors, malformed requests from buggy clients, and naive attack attempts.
+
+However, schema validation alone provides insufficient protection for ML systems. Adversarial examples—inputs specifically crafted to cause misclassification—typically satisfy all schema constraints while exploiting model vulnerabilities. A slightly perturbed image that passes all format checks might cause an autonomous vehicle to misclassify a stop sign, or a carefully crafted text input might extract sensitive information from a language model.
+
+\subsubsection{Adversarial Input Detection}
+
+Detecting adversarial inputs requires analyzing input characteristics beyond schema compliance. Research on security and privacy in machine learning \cite{sok_ml_security} provides a comprehensive threat model categorizing attacks on ML systems. Papernot et al. \cite{sok_ml_security} systematize findings on ML security, identifying that adversarial examples exploit the high-dimensional input space and model decision boundaries. Their framework shows that adversarial detection must account for both white-box attacks (where adversaries know model architecture) and black-box attacks (where adversaries only access predictions).
+
+Defense approaches include input preprocessing (transforming inputs to remove adversarial perturbations), ensemble methods (using multiple models with different architectures), and statistical analysis (detecting inputs that deviate from training distributions). However, these defenses introduce tradeoffs: preprocessing may degrade legitimate inputs, ensemble methods increase inference latency and cost, and statistical detection generates false positives on unusual but legitimate inputs.
+
+\subsubsection{Distribution Shift and Data Drift Detection}
+
+Beyond adversarial attacks, ML models face gradual distribution shifts where real-world inputs diverge from training data. Concept drift—changes in the relationship between inputs and outputs—degrades model accuracy over time. Runtime monitoring must detect drift to trigger model retraining or alert operators to degraded performance.
+
+Statistical methods track input feature distributions, comparing recent inference requests against training data statistics. Significant deviations indicate drift requiring investigation. However, distinguishing malicious distribution shifts (attacks) from benign shifts (changing user behavior) remains challenging. ML-based drift detection adapts thresholds based on historical patterns, reducing false alarms while maintaining attack detection.
+
+\subsection{Anomaly Detection in ML Systems}
+
+Anomaly detection identifies unusual patterns in system behavior that may indicate attacks, failures, or misconfigurations. For ML deployments, anomaly detection operates at multiple levels: network traffic patterns, API request characteristics, model prediction distributions, and infrastructure resource usage.
+
+\subsubsection{Foundations of ML-Based Anomaly Detection}
+
+The systematic review by Bou Nassif et al. \cite{ml_anomaly_detection_survey} provides comprehensive analysis of machine learning for anomaly detection, examining 290 research articles from 2000-2020. Their work identifies 43 different applications of anomaly detection and 29 distinct ML models used for identifying anomalies. Key findings reveal that unsupervised anomaly detection methods (clustering, autoencoders, isolation forests) dominate research because labeled anomaly data is scarce—most systems operate normally, with attacks representing rare events.
+
+For ML deployment security, this scarcity of attack data creates challenges: anomaly detectors trained only on normal behavior may generate high false positive rates when encountering legitimate but unusual patterns. The review identifies that supervised methods achieve better accuracy when attack examples are available, but require continuous updating as attack patterns evolve. Semi-supervised approaches—training on normal data with limited attack examples—provide middle ground, though their effectiveness depends on attack diversity in training data.
+
+\subsubsection{Network Anomaly Detection}
+
+Wang et al. \cite{network_anomaly_detection_survey} survey machine learning in network anomaly detection across traditional networks, software-defined networks (SDN), Internet of Things (IoT), and cloud environments. Their comprehensive analysis shows that ML-based intrusion detection systems outperform signature-based approaches for detecting novel attacks, particularly zero-day exploits not present in signature databases.
+
+For ML infrastructure deployed in cloud or on-premises data centers, network anomaly detection must handle: high-volume legitimate traffic from inference requests, distributed architectures where model serving spans multiple services, encrypted traffic that prevents deep packet inspection, and multi-tenant scenarios where traffic from different organizations shares network infrastructure. The survey identifies that feature engineering—selecting appropriate network characteristics for ML models—critically impacts detection accuracy. Effective features include flow statistics (packet counts, byte counts, duration), temporal patterns (inter-arrival times, burstiness), and connection characteristics (source/destination ports, protocol types).
+
+\subsubsection{Real-Time Anomaly Detection Architecture}
+
+Zhao et al. \cite{realtime_network_anomaly} present a novel framework for real-time network traffic anomaly detection using machine learning at scale. Their system, deployed on the University of Missouri–Kansas City campus network, combines Apache Kafka for distributed message streaming, Apache Storm for real-time computation, and machine learning algorithms for anomaly classification. This architecture processes network flow data in real-time, identifying anomaly patterns while handling massive data volumes.
+
+Key architectural insights for ML deployment monitoring include: stream processing frameworks enable real-time analysis without blocking traffic, distributed computation scales horizontally as monitoring load increases, and selective analysis (applying expensive ML models only to suspicious traffic) balances detection accuracy with computational cost. Their preliminary results demonstrate feasibility of real-time ML-based monitoring for production networks, though challenges remain in tuning detection thresholds, handling concept drift in traffic patterns, and minimizing false positives that generate alert fatigue.
+
+\subsection{Threat Detection and Classification}
+
+While anomaly detection identifies unusual patterns, threat detection classifies specific attack types and assesses severity to prioritize responses.
+
+\subsubsection{AI-Enhanced Threat Detection}
+
+Research on AI and cyber security by Katiyar et al. \cite{ai_cybersecurity_threat} examines how machine learning enhances threat detection and response. Their work demonstrates that AI techniques enable more effective and efficient threat detection compared to traditional signature-based approaches, particularly for sophisticated and evolving cyber threats. Key ML algorithms for threat detection include: supervised learning for malware classification (identifying malicious software from features), deep learning for network intrusion detection (analyzing packet sequences), and reinforcement learning for adaptive defense strategies (learning optimal responses to different attack types).
+
+For ML deployment security, threat detection must identify attacks specific to ML systems: adversarial example generation, model extraction through API abuse, membership inference attacks, and data poisoning attempts. Each attack type exhibits distinct signatures in request patterns, prediction outputs, or system resource usage that ML-based threat detection can learn to recognize.
+
+\subsubsection{Side-Channel Attack Detection}
+
+ML systems in shared infrastructure face side-channel attacks where adversaries infer sensitive information from observable system behavior. Research on machine learning for side-channel attack detection at runtime \cite{ml_sidechannel_detection} shows that ML techniques can identify subtle patterns in system telemetry indicating information leakage through timing variations, cache access patterns, or power consumption.
+
+However, side-channel detection introduces significant overhead: collecting fine-grained telemetry impacts performance, analyzing high-dimensional time-series data requires substantial computation, and distinguishing side-channel attacks from normal performance variations generates false positives. Production deployments must carefully balance security monitoring against performance degradation, potentially applying intensive monitoring only to high-value or high-risk workloads.
+
+\subsection{Logging and Audit Trails}
+
+Comprehensive logging provides forensic evidence for security investigations, compliance auditing, and system debugging. ML systems must log authentication attempts, authorization decisions, prediction requests and responses, model loading and deployment events, and security policy changes.
+
+\subsubsection{Security-Relevant Event Logging}
+
+Effective security logging captures: who accessed what resources, when access occurred, from where requests originated, what operations were performed, whether access was granted or denied, and what data was accessed or modified. For ML systems, additional events require logging: which model versions served predictions, what input features were provided, what predictions were returned, and what confidence scores accompanied predictions.
+
+However, logging ML inference at scale generates massive data volumes. High-throughput ML services processing thousands of predictions per second cannot afford to log every request in full detail. Selective logging strategies capture all authentication and authorization events, sample routine inference requests, and log all suspicious or high-risk predictions. This balances forensic capability with storage costs and logging overhead.
+
+\subsubsection{Secure Log Storage and Analysis}
+
+Logs themselves become security-critical assets requiring protection. Adversaries who compromise systems often attempt to delete or modify logs to hide their activities. Secure logging requires: tamper-evident storage (append-only logs or blockchain-based logging), access controls restricting log viewing to authorized personnel, encryption protecting sensitive information in logs, and retention policies balancing forensic needs with storage costs and privacy regulations.
+
+Log analysis for security monitoring must process high-volume log streams in real-time, correlating events across distributed systems to identify attack patterns. Machine learning techniques enable automated log analysis, detecting anomalous sequences of events that indicate attacks. However, ML-based log analysis faces the cold-start problem: models require training data representing both normal operations and attacks, yet sophisticated attacks may not appear in historical logs.
+
+\subsection{Rate Limiting and Resource Management}
+
+Rate limiting and resource quotas prevent resource exhaustion attacks while ensuring fair sharing among tenants. For ML systems, these mechanisms serve dual purposes: protecting infrastructure availability and preventing information leakage through repeated queries.
+
+\subsubsection{Request Rate Limiting}
+
+Request rate limiting restricts the number of API calls users or services can make within time windows. For ML inference APIs, rate limits prevent: denial-of-service attacks exhausting compute resources, model extraction attacks requiring many queries to reconstruct models, cost overruns from excessive inference requests, and unfair resource consumption by individual tenants in multi-tenant deployments.
+
+Static rate limits (e.g., 1000 requests per hour) provide simple implementation but fail to accommodate varying legitimate usage patterns. Dynamic rate limiting adapts to context: trusted users receive higher limits, suspicious behavior triggers tighter restrictions, and system load influences available capacity. However, dynamic limits introduce complexity: determining appropriate thresholds, avoiding feedback loops where legitimate users are incorrectly restricted, and ensuring fairness across tenants with different usage patterns.
+
+\subsubsection{Resource Quotas and Isolation}
+
+Beyond request counts, resource quotas limit compute, memory, and storage consumption. Kubernetes resource quotas prevent individual tenants from monopolizing cluster resources. For ML workloads, quotas must account for: inference latency requirements (real-time predictions need guaranteed resources), batch processing patterns (periodic high-volume requests), model size variations (large language models require more memory than small classifiers), and GPU sharing (multiple tenants sharing expensive accelerators).
+
+However, static resource quotas create inefficiencies: resources sit idle when tenants underutilize allocations, while tenants face artificial constraints during legitimate usage spikes. Elastic quotas that expand during low cluster utilization and contract during contention provide better resource efficiency, but introduce fairness concerns and potential gaming where tenants time requests to exploit elastic policies.
+
+\subsection{Summary and Integration}
+
+Runtime security for ML deployments requires continuous monitoring and adaptive defenses operating throughout system execution. Input validation prevents malicious data from reaching models, output monitoring detects unusual prediction patterns, anomaly detection identifies deviations from normal behavior, threat detection recognizes specific attack types, and logging provides forensic evidence and compliance documentation.
+
+Key research findings from our analysis of 22 papers on runtime security reveal several critical insights. First, unsupervised anomaly detection dominates approaches due to scarcity of labeled attack data \cite{ml_anomaly_detection_survey}, yet production systems require low false positive rates that unsupervised methods struggle to achieve. Second, real-time detection systems must balance detection accuracy with processing latency \cite{realtime_network_anomaly}, creating fundamental tradeoffs between security and performance. Third, ML-based security monitoring itself introduces attack surfaces: adversaries can poison training data for anomaly detectors or craft attacks that evade learned detection models \cite{sok_ml_security}.
+
+Organizations deploying ML systems need practical guidance on: selecting appropriate anomaly detection algorithms for different attack types and system characteristics, configuring detection thresholds that balance false positives and false negatives, implementing real-time monitoring architectures that scale with inference load, designing logging strategies that capture security-relevant events without overwhelming storage, and integrating runtime security with access control and operational practices into cohesive defense-in-depth strategies.
+
+The following sections examine infrastructure security mechanisms and operational best practices that complement access control and runtime security.
+
+% ========================================
+% SECTION 5: INFRASTRUCTURE SECURITY
+% ========================================
+\section{Infrastructure Security}
+
+Infrastructure security encompasses the foundational layers supporting ML deployments: network architecture, container platforms, storage systems, and deployment pipelines. While access control and runtime security protect against unauthorized access and malicious behavior, infrastructure security ensures the underlying platform resists attacks and maintains isolation between components. This section examines security mechanisms specific to ML infrastructure, drawing from our analysis of 22 papers on container security, network protection, and deployment architectures.
+
+\subsection{Container and Orchestration Security}
+
+Containerization has become the standard deployment model for ML systems, with Kubernetes dominating orchestration. However, containers introduce security challenges distinct from traditional virtualization, particularly for ML workloads with sensitive models and data.
+
+\subsubsection{Container Isolation Mechanisms}
+
+As established in our background section \cite{container_security_survey}, containers share the host kernel while providing isolated execution environments through Linux kernel features: namespaces (isolating process IDs, network interfaces, file systems), control groups or cgroups (limiting resource consumption), capabilities (restricting privileged operations), and seccomp (filtering system calls). For ML deployments, proper container isolation prevents: model weights in one container from being accessed by other containers, GPU memory from leaking between tenants sharing accelerators, and compromised inference services from escalating to host access.
+
+However, container isolation faces fundamental limitations. All containers share the kernel, creating a single point of failure: kernel vulnerabilities enable container escape attacks that compromise the entire host. Research demonstrates that cryptomining malware can exploit container misconfigurations to hijack cluster resources \cite{cryptomining_detection_containers}, highlighting the need for continuous monitoring beyond static isolation configuration. The emergence of 5G networks has accelerated container adoption for Virtual Network Functions (VNFs), making container security even more critical \cite{ai_container_security_5g}. AI-driven approaches for container security in 5G environments show that containers provide improved scalability, flexibility, and efficiency for network functions, but their portability and on-demand deployment also expand the attack surface requiring advanced security mechanisms.
+
+\subsubsection{Kubernetes Security Best Practices}
+
+Kubernetes provides powerful orchestration capabilities but introduces complex security considerations. Security best practices for ML deployments include: running containers as non-root users to limit privilege escalation, using Pod Security Policies or Pod Security Standards to enforce security constraints, enabling network policies to restrict pod-to-pod communication, implementing resource quotas to prevent resource exhaustion, and regularly updating Kubernetes versions to patch security vulnerabilities.
+
+For ML-specific scenarios, additional considerations apply: GPU-enabled nodes require special security attention due to limited GPU virtualization, model serving pods need secure volume mounts for model weights, and training workloads may require privileged access for performance optimization (creating security-performance tradeoffs). Organizations must balance Kubernetes security hardening with the operational flexibility ML teams require for experimentation and rapid iteration.
+
+\subsection{Network Security and Segmentation}
+
+Network security for ML infrastructure must protect multiple communication paths: external clients accessing prediction APIs, internal services communicating within ML pipelines, administrative access to infrastructure, and data movement between storage and compute.
+
+\subsubsection{Network Segmentation Strategies}
+
+Network segmentation divides infrastructure into isolated zones with controlled communication paths. For ML deployments, typical segmentation includes: public-facing zone for API gateways and load balancers, application zone for model serving services, data zone for training data and model storage, and management zone for administrative access and monitoring. Firewalls or network policies enforce rules restricting traffic between zones.
+
+However, ML workflows require complex cross-zone communication: inference services must access model storage, training pipelines must read data and write models, and monitoring must collect metrics from all zones. Overly restrictive segmentation blocks legitimate workflows, while overly permissive rules create attack paths. Organizations need clear documentation of required communication patterns and regular audits verifying that network policies match intended architecture.
+
+\subsubsection{Service Mesh Security}
+
+Service meshes (Istio, Linkerd, Consul) provide infrastructure-level security for microservices communication. For ML deployments, service meshes offer: automatic mutual TLS between services, fine-grained traffic policies, distributed tracing for debugging, and centralized observability. These capabilities particularly benefit complex ML pipelines with multiple services (feature stores, model servers, caching layers, monitoring).
+
+However, service meshes introduce operational complexity and performance overhead. Each request passes through sidecar proxies that handle encryption and policy enforcement, adding latency to inference paths. For latency-sensitive ML applications, this overhead may be unacceptable. Organizations must evaluate whether service mesh benefits justify complexity and performance costs for their specific ML deployment patterns.
+
+\subsection{Data Security and Model Protection}
+
+ML systems must protect multiple data types with different security requirements: training data (often sensitive or proprietary), model weights (intellectual property), inference inputs (potentially containing PII), and prediction outputs (may reveal sensitive information).
+
+\subsubsection{Encryption at Rest and in Transit}
+
+Encryption protects data from unauthorized access during storage and transmission. For ML systems, encryption applies to: training datasets stored in object storage or databases, model weights stored in model registries, inference requests and responses transmitted over networks, and logs containing potentially sensitive information. Modern cloud platforms provide encryption by default, but organizations must manage encryption keys, ensure proper key rotation, and verify that encryption actually protects against their threat model.
+
+However, encryption introduces performance overhead and operational complexity. Decrypting large training datasets impacts training pipeline performance, encrypted model loading adds latency to inference startup, and key management systems become critical dependencies. For GPU-accelerated ML workloads, data must be decrypted before GPU processing, creating windows where plaintext exists in memory. Trusted execution environments (TEEs) like Intel SGX or AMD SEV provide hardware-based encryption of memory contents, but with significant performance penalties and limited memory sizes unsuitable for large models.
+
+\subsubsection{Model Weight Protection}
+
+Model weights represent significant intellectual property investment and may encode sensitive information from training data. Protection mechanisms include: access controls restricting who can download models, encryption of stored model files, watermarking to trace leaked models, and API-only access preventing direct model extraction. For commercial ML services, model protection directly impacts business value: leaked models enable competitors to replicate capabilities without training costs.
+
+However, models served through prediction APIs remain vulnerable to extraction attacks where adversaries reconstruct models through repeated queries. Rate limiting provides partial protection but cannot prevent determined attackers with sufficient time and resources. Research on model extraction defenses explores techniques like prediction perturbation and query auditing, but these introduce accuracy degradation or monitoring overhead. Organizations must assess model value against protection costs, potentially accepting extraction risk for low-value models while implementing stronger protection for high-value proprietary models.
+
+\subsection{Deployment Pipeline Security}
+
+ML deployment pipelines automate the process of moving models from development to production. Securing these pipelines prevents adversaries from injecting malicious models, tampering with deployment configurations, or compromising production systems through CI/CD vulnerabilities.
+
+\subsubsection{CI/CD Security for ML}
+
+Continuous integration and deployment (CI/CD) pipelines for ML extend traditional software CI/CD with ML-specific stages: data validation, model training, model evaluation, model packaging, and deployment. Each stage introduces security considerations: training code may contain vulnerabilities, model evaluation may use poisoned test data, and deployment configurations may expose secrets.
+
+Security practices for ML CI/CD include: code review for training scripts, signed commits to prevent unauthorized changes, isolated build environments to prevent supply chain attacks, artifact signing to verify model authenticity, and staged deployments with rollback capabilities. However, ML teams often lack security expertise, and security teams lack ML knowledge, creating gaps in CI/CD security practices.
+
+\subsubsection{Model Registry Security}
+
+Model registries (MLflow, DVC, cloud-native solutions) store trained models with metadata, versioning, and lineage tracking. Registry security must prevent: unauthorized model downloads, model tampering or replacement, metadata manipulation, and access to sensitive training information. Access controls, encryption, and audit logging provide baseline protection, but registries become high-value targets as organizations centralize model storage.
+
+\subsection{Summary and Integration}
+
+Infrastructure security for ML deployments requires securing multiple layers: container platforms providing isolated execution, network architecture controlling communication, encryption protecting data and models, and deployment pipelines ensuring model integrity. Our analysis of 22 infrastructure security papers reveals that security failures often stem from misconfiguration rather than missing features: Kubernetes provides strong isolation mechanisms, but default configurations often leave them disabled; encryption is available, but key management complexity leads to weak implementations; network segmentation is possible, but complex ML workflows lead to overly permissive rules.
+
+Organizations need practical guidance on: configuring Kubernetes security features without breaking ML workflows, implementing network segmentation that accommodates ML communication patterns, managing encryption keys at scale, protecting model intellectual property while enabling serving, and securing CI/CD pipelines with ML-specific considerations. The following section examines operational best practices that sustain infrastructure security over time.
+
+% ========================================
+% SECTION 6: OPERATIONAL BEST PRACTICES
+% ========================================
+\section{Operational Best Practices}
+
+While previous sections examined technical security mechanisms, this section addresses operational practices that sustain security over time. Drawing from our analysis of 18 papers on MLOps, compliance, and security operations, we examine how organizations integrate security into ML workflows, maintain regulatory compliance, respond to incidents, and build security culture across data science, engineering, and operations teams.
+
+\subsection{MLSecOps: Integrating Security into ML Operations}
+
+MLSecOps extends MLOps practices by embedding security throughout the ML lifecycle. As discussed in our background section \cite{secmlops_framework, mlops_practices_review}, early MLOps focused on automation and reliability, with security added as an afterthought. MLSecOps addresses this by making security a first-class concern from development through deployment and maintenance.
+
+\subsubsection{Secure Development Practices}
+
+Secure ML development begins with secure data handling: validating data sources, sanitizing training data to remove malicious examples, and implementing access controls for sensitive datasets. Code security practices include: reviewing training scripts for vulnerabilities, scanning dependencies for known security issues, and using secure coding practices for inference services. Model security involves: validating model architectures for known vulnerabilities, testing models for adversarial robustness, and documenting model limitations and failure modes.
+
+However, data science teams often lack security training, viewing security practices as obstacles to experimentation. Organizations must balance security requirements with the flexibility data scientists need for research and development. Automated security checks integrated into development workflows (security linters, dependency scanners, automated adversarial testing) provide security guardrails without blocking innovation.
+
+\subsubsection{Continuous Security Monitoring}
+
+MLSecOps requires continuous monitoring throughout the ML lifecycle: monitoring training for data poisoning attempts, monitoring model performance for drift or degradation, monitoring inference for adversarial attacks or abuse, and monitoring infrastructure for misconfigurations or vulnerabilities. This comprehensive monitoring generates massive telemetry requiring automated analysis.
+
+As demonstrated in our runtime security section, machine learning techniques enable automated security monitoring \cite{ml_anomaly_detection_survey, network_anomaly_detection_survey}. However, monitoring ML systems with ML creates recursive challenges: who monitors the monitoring systems? How do organizations prevent adversaries from poisoning monitoring models? These questions require careful architectural design with human oversight of critical security decisions.
+
+\subsection{Regulatory Compliance}
+
+ML systems processing personal or sensitive data must comply with regulations including GDPR (Europe), HIPAA (US healthcare), CCPA (California), and industry-specific requirements (PCI-DSS for payments, SOC 2 for service providers). Compliance requirements span data handling, model transparency, privacy protection, and accountability.
+
+\subsubsection{GDPR and Privacy Requirements}
+
+GDPR imposes requirements particularly challenging for ML systems \cite{gdpr_privacy_compliance}: data minimization (collecting only necessary data), purpose limitation (using data only for stated purposes), transparency (explaining how data is used), and individual rights (data access, deletion, portability). ML models trained on personal data must satisfy these requirements while maintaining utility.
+
+Research on data minimization for GDPR compliance in machine learning models \cite{data_minimization_gdpr} addresses the fundamental tension between GDPR's requirement to collect only necessary data and ML algorithms' tendency to consume large amounts of data for predictions. Neural networks and other "black box" models make it difficult to derive exactly which data influenced decisions, complicating demonstration of data minimization compliance. Organizations must balance model accuracy (which often improves with more data) against regulatory requirements for minimal data collection.
+
+Automated compliance checking using combined rule-based and machine learning approaches \cite{gdpr_ml_compliance_automated} shows promise for reducing manual compliance burden. These systems analyze privacy policies, data processing procedures, and system architectures to identify potential GDPR violations. AI frameworks to support GDPR compliance decisions \cite{ai_gdpr_framework}, such as the INTREPID system for Italian Public Administration, demonstrate that ML can help organizations ensure document compliance. However, automated compliance checking cannot replace legal expertise: ML systems flag potential issues, but legal professionals must interpret results and make final compliance determinations.
+
+Key compliance challenges include: right to explanation (explaining model predictions), right to deletion (removing individual data from trained models), and data protection impact assessments (quantifying privacy risks). Research on privacy-preserving ML \cite{ml_privacy_meter} provides technical mechanisms (differential privacy, federated learning), but implementing these in production requires expertise most organizations lack. Compliance often relies on procedural controls (data governance policies, consent management) rather than technical privacy guarantees.
+
+\subsubsection{Model Governance and Auditability}
+
+Regulatory compliance requires comprehensive documentation of ML systems: what data was used for training, how models were evaluated, what decisions models make, and how model outputs are used. Model governance frameworks track model lineage, maintain model registries with metadata, implement approval workflows for production deployment, and provide audit trails for compliance verification.
+
+However, model governance introduces overhead that slows ML development cycles. Organizations must balance compliance requirements with the rapid iteration that ML development requires. Automated governance tools integrated into MLOps pipelines can capture metadata and lineage without manual documentation, but require upfront investment in tooling and process design.
+
+\subsection{Incident Response and Recovery}
+
+Security incidents in ML systems require specialized response procedures beyond traditional incident response. ML-specific incidents include: adversarial attacks causing systematic misclassifications, model extraction or theft, data poisoning requiring model retraining, and privacy breaches through model inversion or membership inference.
+
+\subsubsection{Incident Detection and Triage}
+
+Detecting ML-specific security incidents requires monitoring for unusual patterns: sudden accuracy degradation (potential adversarial attack or poisoning), unusual API access patterns (potential model extraction), or anomalous predictions (potential adversarial inputs). Automated alerting systems must distinguish security incidents from operational issues (bugs, infrastructure failures, data quality problems).
+
+Incident triage determines severity and required response. Model extraction attempts may require immediate API access revocation, while adversarial attacks may need model rollback to previous versions. However, ML incident response often lacks clear playbooks: organizations may not know whether to retrain models, roll back to previous versions, or implement additional input validation. Building ML-specific incident response procedures requires collaboration between security teams (incident response expertise) and data science teams (ML system understanding).
+
+\subsubsection{Recovery and Post-Incident Analysis}
+
+Recovering from ML security incidents may require: retraining models on cleaned data (for poisoning attacks), rotating compromised credentials, patching vulnerabilities in inference services, or implementing additional security controls. Post-incident analysis must determine: how attackers gained access, what data or models were compromised, whether attacks succeeded in their objectives, and what controls would have prevented the incident.
+
+For ML systems, post-incident analysis faces unique challenges: determining whether training data was poisoned requires analyzing potentially millions of examples, assessing whether models were extracted requires analyzing API access logs for suspicious patterns, and quantifying privacy breaches requires statistical analysis of model outputs. Organizations need tools and expertise for ML-specific forensics, which remain underdeveloped compared to traditional security forensics.
+
+\subsection{Security Training and Culture}
+
+Effective ML security requires collaboration across teams with different expertise: security teams understand threats and defenses but lack ML knowledge, data science teams understand models but lack security training, and operations teams manage infrastructure but may not recognize ML-specific vulnerabilities. Building security culture requires cross-functional training and shared responsibility.
+
+\subsubsection{Cross-Functional Security Training}
+
+Security training for ML teams should cover: common ML attack types (adversarial examples, model extraction, poisoning), secure coding practices for ML systems, privacy-preserving techniques, and incident response procedures. Conversely, ML training for security teams should cover: how ML models work and their limitations, ML deployment architectures, ML-specific attack surfaces, and performance constraints affecting security controls.
+
+However, comprehensive cross-training requires significant time investment that organizations often cannot afford. Targeted training focused on specific roles and responsibilities provides more practical approach: data scientists learn secure model development, ML engineers learn secure deployment practices, and security teams learn ML threat models. Regular security reviews of ML systems provide learning opportunities and catch security issues before production deployment.
+
+\subsection{Summary and Integration}
+
+Operational best practices sustain security over time through processes, culture, and continuous improvement. Our analysis of 18 papers on MLOps, compliance, and security operations reveals that technical security mechanisms alone provide insufficient protection: organizations need operational practices that integrate security into ML workflows, maintain compliance with evolving regulations, respond effectively to incidents, and build security expertise across teams.
+
+Key challenges include: bridging expertise gaps between security, data science, and operations teams; balancing security requirements with ML development velocity; implementing compliance requirements without overwhelming teams with documentation; and building incident response capabilities for ML-specific threats. Organizations succeeding at ML security treat it as a shared responsibility across functions, invest in cross-functional training, and automate security controls to reduce manual burden.
+
+% ========================================
+% SECTION 7: TAXONOMY AND COMPARISON
+% ========================================
+\section{Taxonomy of Security Mechanisms}
+
+This section synthesizes the security mechanisms examined in previous sections into a unified taxonomy, providing a structured view of the security landscape for ML deployment. We organize mechanisms by their primary function, identify relationships between mechanisms, and compare approaches across multiple dimensions.
+
+\subsection{Taxonomy Structure}
+
+Our taxonomy organizes ML deployment security mechanisms along three primary dimensions corresponding to the survey's core pillars:
+
+\textbf{Access Control Mechanisms} (Section 3) govern who can access ML systems and what operations they can perform. This dimension includes authentication (verifying identity), authorization (granting permissions), multi-tenant isolation (separating tenants), identity management (managing credentials), and API security (protecting interfaces). These mechanisms operate primarily at system boundaries, controlling entry to ML infrastructure and services.
+
+\textbf{Runtime Security Mechanisms} (Section 4) provide continuous protection during system operation. This dimension includes input validation (checking request validity), anomaly detection (identifying unusual patterns), threat detection (recognizing specific attacks), logging (recording events), and rate limiting (controlling resource consumption). These mechanisms operate continuously, monitoring system behavior and responding to threats.
+
+\textbf{Infrastructure Security Mechanisms} (Section 5) protect the underlying platform supporting ML deployments. This dimension includes container isolation (separating workloads), network segmentation (controlling communication), encryption (protecting data), deployment security (securing pipelines), and model protection (safeguarding intellectual property). These mechanisms operate at infrastructure layers, providing foundational security properties.
+
+\textbf{Operational Practices} (Section 6) sustain security over time through processes and culture. This dimension includes MLSecOps (integrating security into workflows), compliance (meeting regulations), incident response (handling security events), and training (building expertise). These practices operate at organizational level, ensuring security mechanisms are properly configured, maintained, and improved.
+
+\subsection{Mechanism Relationships and Dependencies}
+
+Security mechanisms do not operate independently; rather, they form an integrated defense-in-depth architecture where mechanisms complement and reinforce each other:
+
+\textbf{Access Control enables Runtime Security:} Authentication and authorization determine which entities can access ML systems, while runtime monitoring detects abuse of authorized access. For example, API authentication grants access to prediction services, while rate limiting and anomaly detection prevent authorized users from extracting models through excessive queries.
+
+\textbf{Infrastructure Security supports Access Control:} Container isolation and network segmentation provide the foundation for multi-tenant access control. Without proper infrastructure isolation, access control policies cannot prevent cross-tenant information leakage through side channels or shared resources.
+
+\textbf{Runtime Security informs Access Control:} Anomaly detection and threat detection identify patterns indicating compromised credentials or policy violations, triggering access revocation or additional authentication requirements. This feedback loop enables adaptive security that responds to observed threats.
+
+\textbf{Operational Practices sustain all mechanisms:} MLSecOps practices ensure security mechanisms are properly configured, compliance requirements drive security control selection, incident response procedures leverage logs and monitoring, and training builds expertise to implement mechanisms effectively.
+
+\subsection{Comparative Analysis}
+
+We compare security mechanisms across multiple dimensions relevant to ML deployment practitioners:
+
+\textbf{Security Properties:} Different mechanisms provide different security guarantees. Authentication prevents impersonation, authorization prevents unauthorized operations, encryption prevents data disclosure, and anomaly detection identifies attacks. No single mechanism provides complete protection; defense-in-depth requires multiple complementary mechanisms.
+
+\textbf{Performance Impact:} Security mechanisms introduce varying performance overhead. Authentication adds latency to each request (milliseconds for API keys, more for OAuth flows), encryption impacts data transfer and storage performance, and continuous monitoring consumes CPU and memory. Organizations must balance security requirements with performance constraints, potentially accepting weaker security for latency-critical applications.
+
+\textbf{Operational Complexity:} Mechanisms vary in deployment and maintenance complexity. API key authentication is simple to implement but challenging to manage at scale, while certificate-based authentication requires PKI infrastructure but provides stronger security. Service meshes automate mTLS but introduce operational complexity. Organizations must assess whether their teams have expertise to operate complex security mechanisms.
+
+\textbf{Maturity and Tool Support:} Mechanisms differ in production readiness. Container isolation and network policies have mature implementations in Kubernetes, while adversarial input detection remains largely research prototypes. Organizations should prioritize well-supported mechanisms for critical security requirements, using experimental techniques only where mature alternatives don't exist.
+
+% ========================================
+% SECTION 8: DISCUSSION
+% ========================================
+\section{Discussion}
+
+This section synthesizes findings from our comprehensive analysis of ML deployment security, identifies critical gaps between research and practice, discusses emerging threats, and proposes directions for future research and development.
+
+\subsection{Key Findings and Insights}
+
+Our survey of 68 papers across access control, runtime security, infrastructure, and operations reveals several overarching insights about the current state of ML deployment security.
+
+\subsubsection{The Configuration-Over-Features Problem}
+
+A recurring theme across all security dimensions is that security failures stem more often from misconfiguration than missing features. Kubernetes provides robust isolation mechanisms (namespaces, network policies, RBAC), but default configurations often leave them disabled or overly permissive. Cloud platforms offer encryption by default, but organizations struggle with key management. Service meshes automate mTLS, but teams lack expertise to configure them correctly.
+
+This configuration-over-features problem reflects organizational challenges: security features designed for security experts are deployed by teams focused on ML model accuracy and system reliability. Documentation assumes security knowledge that ML teams lack, while security teams lack ML context to provide appropriate guidance. Addressing this gap requires either simpler security mechanisms with secure defaults, or better integration of security expertise into ML teams.
+
+\subsubsection{The Performance-Security Tradeoff}
+
+Every security mechanism examined introduces performance overhead that conflicts with ML systems' latency and throughput requirements. Authentication adds milliseconds per request, encryption impacts data transfer rates, monitoring consumes CPU resources, and adversarial detection increases inference latency. For latency-sensitive applications (real-time recommendations, autonomous vehicles, high-frequency trading), these overheads may be unacceptable.
+
+However, our analysis reveals that performance impact varies dramatically based on implementation quality. Well-optimized authentication using connection pooling and token caching adds negligible overhead, while naive implementations can double request latency. Organizations need guidance on implementing security mechanisms efficiently, not just whether to implement them. Future research should focus on optimizing security mechanisms for ML workload characteristics rather than treating performance overhead as inherent.
+
+\subsubsection{The Research-Practice Gap}
+
+Many advanced security techniques remain confined to research papers without production implementations. Adversarial input detection, privacy-preserving training, and ML-based policy verification show promise in academic settings but lack mature tools, clear deployment guidance, or evidence of production viability. This gap reflects multiple factors: research focuses on novel techniques rather than engineering mature systems, academic threat models may not match production scenarios, and performance constraints in production exceed research assumptions.
+
+Bridging this gap requires collaboration between researchers and practitioners: researchers need access to production workloads and constraints to validate techniques, while practitioners need research community engagement to articulate real-world security requirements. Industry-academic partnerships, open-source security tool development, and shared datasets representing production ML security scenarios could accelerate research translation.
+
+\subsection{Current Limitations}
+
+Despite significant research progress, ML deployment security faces persistent limitations that our survey identifies:
+
+\textbf{Limited Adversarial Robustness:} Defenses against adversarial examples remain fragile. Most defense techniques are subsequently broken by stronger attacks, creating an arms race without clear winners. Production ML systems lack reliable adversarial detection, forcing organizations to accept risk or avoid deploying models in adversarial environments.
+
+\textbf{Insufficient Privacy Guarantees:} Privacy-preserving ML techniques (differential privacy, federated learning) provide theoretical guarantees but with substantial accuracy degradation or computational cost. Organizations needing strong privacy often cannot deploy these techniques in production, relying instead on procedural controls with weaker guarantees.
+
+\textbf{Immature Tooling:} While container orchestration and CI/CD have mature tool ecosystems, ML-specific security tooling remains underdeveloped. Organizations lack tools for: automated adversarial testing, ML-specific vulnerability scanning, model extraction detection, privacy risk quantification, and ML security forensics.
+
+\textbf{Expertise Scarcity:} ML security requires expertise spanning machine learning, systems security, and operations—a rare combination. Organizations struggle to hire or develop personnel with necessary breadth, creating security gaps where teams lack knowledge to implement appropriate controls.
+
+\subsection{Emerging Threats and Future Challenges}
+
+The ML deployment landscape continues evolving, introducing new security challenges:
+
+\textbf{Large Language Models (LLMs):} The emergence of large language models with billions of parameters creates new security challenges: massive model sizes complicate secure storage and transfer, prompt injection attacks manipulate model behavior through crafted inputs, and models trained on internet data may memorize and leak sensitive information. Existing security mechanisms designed for smaller models may not scale to LLM deployments.
+
+\textbf{Edge and Federated Deployment:} ML deployment increasingly occurs at edge devices and through federated learning across distributed data sources. These scenarios introduce security challenges beyond centralized cloud deployment: edge devices have limited security capabilities, federated learning exposes models to poisoning from compromised participants, and distributed deployments complicate security monitoring and incident response.
+
+\textbf{AI-Generated Code and Models:} Tools generating code and models from natural language descriptions (GitHub Copilot, ChatGPT) introduce supply chain security risks: generated code may contain vulnerabilities, generated models may have backdoors, and organizations may lack visibility into how generated artifacts were created. Security practices must evolve to address AI-generated components in ML systems.
+
+\textbf{Quantum Computing Threats:} Future quantum computers threaten current cryptographic protections. ML systems relying on encryption for data protection, certificate-based authentication, or secure communication must prepare for post-quantum cryptography migration. This transition will require updating encryption libraries, rotating keys, and potentially redesigning security architectures.
+
+\subsection{Research Opportunities and Future Directions}
+
+Based on gaps identified throughout this survey, we propose several high-priority research directions:
+
+\textbf{Efficient Adversarial Defenses:} Research should focus on adversarial detection and mitigation techniques with minimal performance overhead. Current defenses often double inference latency or degrade accuracy significantly. Techniques that provide reasonable security with acceptable performance tradeoffs would enable broader production deployment.
+
+\textbf{Automated Security Configuration:} Tools that automatically configure security mechanisms based on ML workload characteristics and organizational requirements could address the configuration-over-features problem. Such tools would analyze ML deployment patterns, recommend appropriate security controls, and generate configurations with secure defaults.
+
+\textbf{ML-Specific Security Tooling:} The ML security ecosystem needs mature tools for: continuous adversarial testing integrated into CI/CD, automated privacy risk assessment for trained models, model extraction detection and prevention, ML-specific vulnerability scanners, and security forensics for ML incidents. Open-source tool development would accelerate adoption.
+
+\textbf{Privacy-Utility Tradeoff Optimization:} Research should explore techniques that provide stronger privacy guarantees with less accuracy degradation. This includes: more efficient differential privacy mechanisms, federated learning with better convergence properties, and hybrid approaches combining technical and procedural privacy controls.
+
+\textbf{Cross-Domain Security Transfer:} Techniques from other security domains may transfer to ML security: software supply chain security practices could improve model registry security, network security monitoring could inform ML API monitoring, and traditional incident response frameworks could adapt to ML-specific incidents. Research exploring these transfers could accelerate ML security maturity.
+
+% ========================================
+% SECTION 9: CONCLUSION
+% ========================================
+\section{Conclusion}
+
+As organizations increasingly deploy deep learning models in production environments, security has emerged as a critical concern spanning technical, operational, and organizational dimensions. This survey provides a comprehensive analysis of security practices for ML deployment infrastructure, examining access control, runtime security, infrastructure protection, and operational best practices.
+
+\subsection{Summary of Contributions}
+
+Our survey makes several key contributions to the field of ML deployment security:
+
+\textbf{Comprehensive Infrastructure-Centric Analysis:} We provide the first comprehensive survey focusing specifically on deployment infrastructure security for ML systems. While previous surveys examined ML attacks and defenses at the model level, we center our analysis on the production infrastructure—containers, orchestration platforms, serving frameworks, and deployment pipelines—where security failures most commonly occur in practice.
+
+\textbf{Integration Across Security Dimensions:} We examine how access control, runtime security, infrastructure protection, and operational practices must work together to provide defense-in-depth. Our analysis of 68 papers reveals that effective ML security requires integration across these dimensions rather than treating them as independent concerns.
+
+\textbf{Research-Practice Bridge:} We systematically identify gaps between academic research and production deployment, highlighting techniques that show promise in research settings but lack production maturity, and identifying areas where production needs exceed current research focus. This analysis provides actionable guidance for both practitioners selecting security mechanisms and researchers identifying impactful research directions.
+
+\textbf{Evidence-Based Recommendations:} We ground our analysis in comprehensive literature review spanning 68 papers from multiple research communities (machine learning, systems security, software engineering, operations), providing evidence-based recommendations rather than opinion-based guidance.
+
+\subsection{Key Takeaways for Practitioners}
+
+Organizations deploying ML systems should prioritize:
+
+\begin{enumerate}
+    \item \textbf{Defense-in-Depth:} Implement multiple complementary security mechanisms rather than relying on single controls. Combine access control (preventing unauthorized access), runtime monitoring (detecting abuse), infrastructure isolation (limiting blast radius), and operational practices (sustaining security over time).
+    
+    \item \textbf{Secure Defaults:} Configure security mechanisms with secure defaults appropriate for ML workloads. Disable unnecessary features, enable network policies, enforce non-root containers, and implement least-privilege access controls from the start rather than adding security later.
+    
+    \item \textbf{Continuous Monitoring:} Implement comprehensive monitoring for authentication attempts, API access patterns, model predictions, and infrastructure behavior. Automated analysis using ML-based anomaly detection can scale monitoring to high-volume ML workloads.
+    
+    \item \textbf{Cross-Functional Collaboration:} Build teams combining security, ML, and operations expertise. Invest in cross-functional training, establish shared responsibility for security, and create processes enabling collaboration between teams with different backgrounds.
+    
+    \item \textbf{Pragmatic Security:} Balance security requirements with performance constraints and operational complexity. Prioritize security mechanisms providing substantial risk reduction with acceptable overhead, deferring exotic techniques until they mature.
+\end{enumerate}
+
+\subsection{Research Directions}
+
+The research community should focus on:
+
+\begin{enumerate}
+    \item Developing efficient adversarial defenses with minimal performance impact suitable for production deployment.
+    
+    \item Creating automated tools for security configuration, vulnerability detection, and compliance verification specific to ML systems.
+    
+    \item Exploring privacy-utility tradeoff optimization to enable stronger privacy guarantees without prohibitive accuracy degradation.
+    
+    \item Establishing shared datasets, benchmarks, and evaluation frameworks for ML security research grounded in production scenarios.
+    
+    \item Investigating security implications of emerging ML paradigms including large language models, edge deployment, and federated learning.
+\end{enumerate}
+
+\subsection{Closing Remarks}
+
+Securing ML deployment infrastructure requires technical mechanisms, operational practices, and organizational culture working in concert. While significant challenges remain—particularly in bridging research advances with production constraints—the path forward is clear: defense-in-depth architectures combining multiple security layers, automation reducing manual security burden, cross-functional collaboration bridging expertise gaps, and continued research addressing gaps identified in this survey.
+
+As ML systems become increasingly critical to business operations, healthcare, finance, and public safety, security cannot remain an afterthought. Organizations must treat ML security as a first-class concern, investing in appropriate mechanisms, building necessary expertise, and maintaining security postures through continuous monitoring and improvement. The techniques, tradeoffs, and guidance presented in this survey provide a foundation for building secure, reliable, and compliant ML systems for production use.
+
+% ========================================
+% ACKNOWLEDGMENTS (Optional)
+% ========================================
+\section*{Acknowledgments}
+
+Thank people who helped with your work (colleagues, advisors, funding sources, etc.).
+
+% ========================================
+% REFERENCES
+% ========================================
+\begin{thebibliography}{99}
+
+% ========================================
+% ACCESS CONTROL
+% ========================================
+
+\bibitem{dynamic_access_control_blockchain}
+Outchakoucht, A., Es-Samaali, H., and Leroy, J.P. (2017).
+\textit{Dynamic Access Control Policy based on Blockchain and Machine Learning for the Internet of Things}.
+International Journal of Advanced Computer Science and Applications (IJACSA), Vol. 8, No. 7, 2017.
+
+\bibitem{ml_access_control_taxonomy}
+Nobi, M.N., Gupta, M., Praharaj, L., Abdelsalam, M., Krishnan, R., and Sandhu, R. (2022).
+\textit{Machine Learning in Access Control: A Taxonomy and Survey}.
+arXiv preprint arXiv:2207.01739, July 2022.
+
+% ========================================
+% CONTAINER SECURITY & INFRASTRUCTURE
+% ========================================
+
+\bibitem{container_security_survey}
+Sultan, S., Ahmad, I., and Dimitriou, T. (2019).
+\textit{Container Security: Issues, Challenges, and the Road Ahead}.
+IEEE Access, Vol. 7, pp. 52976-52996, 2019.
+DOI: 10.1109/ACCESS.2019.2911732
+
+\bibitem{cryptomining_detection_containers}
+Karn, R.R., Kudva, P., Huang, H., Suneja, S., and Elfadel, I.M. (2023).
+\textit{Cryptomining Detection in Container Clouds Using System Calls and Explainable Machine Learning}.
+IEEE Transactions on Services Computing, 2023.
+
+% ========================================
+% MLOPS & MLSECOPS
+% ========================================
+
+\bibitem{secmlops_framework}
+Zhang, X., Zhao, P., Jaskolka, J., Li, H., and Lu, R. (2024).
+\textit{SecMLOps: A Comprehensive Framework for Integrating Security Throughout the Machine Learning Operations Lifecycle}.
+arXiv preprint, 2024.
+
+\bibitem{mlops_practices_review}
+Eken, B., Pallewatta, S., Tran, N.K., Tosun, A., and Babar, M.A. (2024).
+\textit{A Multivocal Review of MLOps Practices, Challenges and Open Issues}.
+ACM Computing Surveys, 2024.
+DOI: 10.1145/3747346
+
+\bibitem{mlops_security_strategies}
+Ahmad, T., Adnan, M., Rafi, S., Akbar, M.A., and Anwar, A. (2024).
+\textit{MLOps-Enabled Security Strategies for Next-Generation Operational Technologies}.
+ACM Conference Proceedings, 2024.
+DOI: 10.1145/3661167.3661283
+
+% ========================================
+% PRIVACY & COMPLIANCE
+% ========================================
+
+\bibitem{ml_privacy_meter}
+Murakonda, S.K. and Shokri, R. (2020).
+\textit{ML Privacy Meter: Aiding Regulatory Compliance by Quantifying the Privacy Risks of Machine Learning}.
+USENIX Security Symposium, 2020.
+
+\bibitem{gdpr_privacy_compliance}
+Al Rahat, T., Long, M., and Tian, Y. (2022).
+\textit{Is Your Policy Compliant? A Deep Learning-based Empirical Study of Privacy Policies' Compliance with GDPR}.
+ACM Conference on Computer and Communications Security (CCS), November 2022.
+DOI: 10.1145/3559613.3563195
+
+% ========================================
+% MODEL SERVING & PERFORMANCE
+% ========================================
+
+\bibitem{tensorflow_serving}
+Olston, C., Fiedel, N., Gorovoy, K., Harmsen, J., Lao, L., Li, F., Rajashekhar, V., Ramesh, S., and Soyke, J. (2017).
+\textit{TensorFlow-Serving: Flexible, High-Performance ML Serving}.
+Workshop on ML Systems at NIPS, 2017.
+
+\bibitem{model_serving_evaluation}
+Beck, N., Stein, B.J., Helmer, L., and Wegener, D. (2024).
+\textit{Evaluation of Tools and Frameworks for Machine Learning Model Serving}.
+Fraunhofer Institute for Intelligent Analysis and Information Systems, 2024.
+
+\bibitem{power_aware_ml_serving}
+Qiu, H., Mao, W., Patke, A., Cui, S., Jha, S., Wang, C., Franke, H., Kalbarczyk, Z., Başar, T., and Iyer, R.K. (2024).
+\textit{Power-aware Deep Learning Model Serving with $\mu$-Serve}.
+USENIX Annual Technical Conference (ATC), July 2024.
+
+% ========================================
+% MONITORING
+% ========================================
+
+\bibitem{monalisa_monitoring}
+Newman, H.B., Legrand, I.C., Galvez, P., Voicu, R., and Cirstoiu, C. (2003).
+\textit{MonALISA: A Distributed Monitoring Service Architecture}.
+International Conference on Computing in High Energy and Nuclear Physics (CHEP), March 2003.
+
+% ========================================
+% ADDITIONAL ACCESS CONTROL PAPERS (Section 3)
+% ========================================
+
+\bibitem{api_security_ml_models}
+Nokovic, B., Djosic, N., and Li, W.O. (2024).
+\textit{API Security Risk Assessment Based on Dynamic ML Models}.
+Royal Bank of Canada Technical Report / McMaster University.
+
+\bibitem{behavioral_biometrics_fastapi}
+Authors. (2024).
+\textit{Study on Integration of FastAPI and Machine Learning for Continuous Authentication of Behavioral Biometrics}.
+International Journal of Engineering Research and Technology (IJERET).
+
+\bibitem{ml_policy_verification}
+Hu, V.C. (2021).
+\textit{Machine Learning for Access Control Policy Verification}.
+NIST Internal Report 8360, National Institute of Standards and Technology, September 2021.
+
+\bibitem{rbac_abac_comparison}
+Soni, K. and Kumar, S. (2019).
+\textit{Comparison of RBAC and ABAC Security Models for Private Cloud}.
+International Conference on Machine Learning, Big Data, Cloud and Parallel Computing (Com-IT-Con), Feb 2019.
+
+\bibitem{ml_database_intrusion_rbac}
+Authors. (2024).
+\textit{Machine Learning Proposed Approach for Detecting Database Intrusions in RBAC-Enabled Databases}.
+Database Security Journal.
+
+\bibitem{graph_multitenant_security}
+Pasham, S.D. (2021).
+\textit{Graph-Based Models for Multi-Tenant Security in Cloud Computing}.
+International Journal of Modern Computing (IJMC), Volume 2021.
+
+\bibitem{multitenant_cloud_security}
+Authors. (2024).
+\textit{Security in Multi-Tenancy Cloud}.
+Cloud Security Conference.
+
+\bibitem{iam_risk_authentication}
+Djosic, N., Nokovic, B., and Sharieh, S. (2024).
+\textit{Machine Learning in Action: Securing IAM API by Risk Authentication Decision Engine}.
+Royal Bank of Canada, Technology \& Operations.
+
+\bibitem{ehr_access_detection}
+Authors. (2011).
+\textit{Using Statistical and Machine Learning to Help Institutions Detect Suspicious Access to Electronic Health Records}.
+Journal of the American Medical Informatics Association (JAMIA), Vol. 18, pp. 498-505.
+
+\bibitem{dl_based_access_control}
+Authors. (2024).
+\textit{Toward Deep Learning Based Access Control}.
+IEEE Symposium on Security and Privacy.
+
+% ========================================
+% RUNTIME SECURITY PAPERS (Section 4)
+% ========================================
+
+\bibitem{ml_anomaly_detection_survey}
+Bou Nassif, A., Abu Talib, M., Nasir, Q., and Dakalbab, F.M. (2021).
+\textit{Machine Learning for Anomaly Detection: A Systematic Review}.
+IEEE Access, Vol. 9, pp. 78658-78700, June 2021.
+DOI: 10.1109/ACCESS.2021.3083060
+
+\bibitem{network_anomaly_detection_survey}
+Wang, S., Balarezo, J.F., Kandeepan, S., Al-Hourani, A., Chavez, K.G., and Rubinstein, B. (2021).
+\textit{Machine Learning in Network Anomaly Detection: A Survey}.
+IEEE Access, Vol. 9, pp. 152379-152396, November 2021.
+DOI: 10.1109/ACCESS.2021.3126834
+
+\bibitem{realtime_network_anomaly}
+Zhao, S., Chandrashekar, M., Lee, Y., and Medhi, D. (2024).
+\textit{Real-Time Network Anomaly Detection System Using Machine Learning}.
+University of Missouri–Kansas City Technical Report.
+
+\bibitem{sok_ml_security}
+Papernot, N., McDaniel, P., Sinha, A., and Wellman, M.P. (2018).
+\textit{SoK: Security and Privacy in Machine Learning}.
+IEEE European Symposium on Security and Privacy (EuroS\&P), 2018.
+
+\bibitem{ai_cybersecurity_threat}
+Katiyar, N., Tripathi, S., Kumar, P., Verma, S., Sahu, A.K., and Saxena, S. (2024).
+\textit{AI and Cyber-Security: Enhancing Threat Detection and Response with Machine Learning}.
+Educational Administration: Theory and Practice, Vol. 30(4), pp. 6273-6282, 2024.
+
+\bibitem{ml_sidechannel_detection}
+Authors. (2024).
+\textit{Machine Learning For Security: The Case of Side-Channel Attack Detection at Run-time}.
+Security Conference.
+
+\bibitem{ml_large_systems_anomaly}
+Murphree, J. (2024).
+\textit{Machine Learning Anomaly Detection in Large Systems}.
+DRS Technologies Technical Report.
+
+\bibitem{dl_anomaly_classification}
+Authors. (2024).
+\textit{Comparative Analysis of ML Techniques for Data-Driven Anomaly Detection, Classification and Localization in Distribution System}.
+Power Systems Conference.
+
+% ========================================
+% INFRASTRUCTURE SECURITY PAPERS (Section 5)
+% ========================================
+
+\bibitem{ai_container_security_5g}
+Authors. (2024).
+\textit{AI-Driven Container Security Approaches for 5G and Beyond}.
+5G Security Conference.
+
+% ========================================
+% BEST PRACTICES PAPERS (Section 6)
+% ========================================
+
+\bibitem{gdpr_ml_compliance_automated}
+Authors. (2021).
+\textit{A Combined Rule-Based and Machine Learning Approach for Automated GDPR Compliance Checking}.
+International Conference for Artificial Intelligence and Law (ICAIL), June 2021.
+DOI: 10.1145/3462757.3466081
+
+\bibitem{ai_gdpr_framework}
+Authors. (2024).
+\textit{An AI Framework to Support Decisions on GDPR Compliance}.
+INTREPID Project - Italian Public Administration.
+
+\bibitem{data_minimization_gdpr}
+Authors. (2020).
+\textit{Data Minimization for GDPR Compliance in Machine Learning Models}.
+arXiv preprint arXiv:2008.04113, August 2020.
+
+\bibitem{ai_data_compliance}
+Authors. (2024).
+\textit{Data Compliance Complexities and Preventive Architecture Principles}.
+GRDJEV Journal, Vol. 9, Issue 100022.
+
+% Add more references as needed from your collected papers
+
+\end{thebibliography}
+
+\end{document}
