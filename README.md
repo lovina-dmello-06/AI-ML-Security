@@ -173,13 +173,3 @@ lualatex Secure_Infrastructure_for_Deep_Learning_Model_Deployment_ACM.tex
 **Lokesh Adusumilli**
 - Email: LokeshDhananjayaRao.Adusumilli@uga.edu
 - Institution: University of Georgia
-
----
-
-## 📄 License
-
-Copyright © 2026. All rights reserved.
-
----
-
-**Last Updated:** February 3, 2026
